@@ -37,17 +37,15 @@ check_url
 ---------
 
 Prototype
-	::
 	check_url(STRING protected_url, STRING secret, STRING expired_url, STRING error_url)
 
 Return value
-	::
 	STRING (URL that the user should be directed to)
 
 Description
 	Checks the validity of a protected URL. A protected URL looks like this:::
 
-		`http://hostname`/**path/to/protected/file**/**md5_hash**/**expiration_timestamp**
+		http://hostname/path/to/protected/file/<md5_hash>/<expiration_timestamp>
 
 	Since Varnish already does some processing on the URL, **req.url**, which does not contain
 	the `http://hostname` part is probably a good candidate in your VCL scripts.
@@ -56,7 +54,7 @@ Description
 	
 	**md5_hash** is a MD5 hash generated out of the following string, by your application:::
 	
-		/path/to/protected/file/**secret**/**expiration_timestamp**
+		/path/to/protected/file/<secret>/<expiration_timestamp>
 
 	The **secret** is some secret string of your choice, known only of your application,
 	which will serve to generate the expiring links.
