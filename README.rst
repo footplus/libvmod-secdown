@@ -65,9 +65,10 @@ Description
 
 Examples
 	Protection of the /protected/ directory.::
-	if (req.url ~ "^/protected/") {
-		set req.url = secdown.check_url(req.url, "h4ckme", "/expired.html", "/error.html") 
-	}
+		if (req.url ~ "^/protected/")
+		{
+			set req.url = secdown.check_url(req.url, "h4ckme", "/expired.html", "/error.html") 
+		}
 	
 SEE ALSO
 ========
