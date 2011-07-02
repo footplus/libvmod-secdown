@@ -1,4 +1,4 @@
-!/bin/sh
+#!/bin/sh
 
 warn() {
 	echo "WARNING: $@" 1>&2

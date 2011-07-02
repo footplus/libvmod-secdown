@@ -1,8 +1,10 @@
+# Inpired by the configure.ac present @ https://github.com/zephirworks/libvmod-redis, (C) ZephyrWorks
+
 AC_PREREQ(2.59)
-AC_COPYRIGHT([Copyright (c) 2011 ZephirWorks])
-AC_INIT([libvmod-redis], [0.1])
+AC_COPYRIGHT([Copyright (c) 2011 Aurelien Guillaume])
+AC_INIT([libvmod-secdown], [0.1])
 AC_CONFIG_MACRO_DIR([m4])
-AC_CONFIG_SRCDIR(src/vmod_redis.vcc)
+AC_CONFIG_SRCDIR(src/vmod.vcc)
 AM_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_SYSTEM
@@ -31,6 +33,14 @@ AC_CHECK_HEADERS([sys/stdlib.h])
 
 # Check for python
 AC_CHECK_PROGS(PYTHON, [python3 python3.1 python3.2 python2.7 python2.6 python2.5 python2 python], [AC_MSG_ERROR([Python is needed to build this vmod, please install python.])])
+
+# Check for rst2man
+AC_CHECK_PROGS(RST2MAN, [rst2man rst2man.py], "no")
+if test "x$RST2MAN" = "xno"; then
+   AC_MSG_WARN([rst2man not found – not building man pages])
+fi
+AM_CONDITIONAL(HAVE_RST2MAN,[test "x$RST2MAN" != "xno"])
+
 
 # Varnish source tree
 AC_ARG_VAR([VARNISHSRC], [path to Varnish source tree (mandatory)])

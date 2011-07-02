@@ -31,11 +31,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <pcre.h>
-#include "md5.h"
+
 #include "vrt.h"
-#include "../../bin/varnishd/cache.h"
+#include "bin/varnishd/cache.h"
 
 #include "vcc_if.h"
+#include "md5.h"
 
 const char * __match_proto__()
 vmod_check_url(struct sess *sp, struct vmod_priv *priv, const char *url,
