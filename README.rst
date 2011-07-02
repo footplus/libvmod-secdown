@@ -22,16 +22,24 @@ DESCRIPTION
 
 For specific purposes, i had to imagine a way to use Varnish as a cache for
 various files that should be protected against hotlinking/mass downloading.
-Protection by the referer was not enough, so unique downloads links had to be generated.
+Protection by the referer was not enough, so unique downloads links had to be generated,
+but I still wanted the files to be cached by Varnish.
 
-I still wanted the files to be cached by Varnish.
+So, this module is freely inspired from the functionnality described at
+http://wiki.nginx.org/HttpSecureDownload and it should be compatible with this implementation.
 
-This module is freely inspired from the functionnality described at
-http://wiki.nginx.org/HttpSecureDownload and it should be perfectly
-compatible with this implementation.
+At this stage, this module is mostly a proof-of-concept; it has only received minimal
+testing and we have never used it in production. I will update this file if/when it reaches
+a more usable status.
+
+So far the module builds and runs on Linux--on other platforms, you are on your own.
+
+Patches are welcome.
 
 FUNCTIONS
 =========
+
+vmod_secdown implements the following calls:
 
 check_url
 ---------
