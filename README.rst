@@ -37,9 +37,11 @@ check_url
 ---------
 
 Prototype
+	::
 	check_url(STRING protected_url, STRING secret, STRING expired_url, STRING error_url)
 
 Return value
+	::
 	STRING (URL that the user should be directed to)
 
 Description
@@ -59,12 +61,12 @@ Description
 	The **secret** is some secret string of your choice, known only of your application,
 	which will serve to generate the expiring links.
 
-	**check_url()** will return a string, which will be either:
+	The function **check_url** will return a string, which will be either:
 		* **expired_url**, when the hash is valid, but the timestamp is in the past..
 		* **error_url** if there's been another error (bad hash, bad url scheme, other internal errors)
 
-Example::
-
+Examples
+	Protection of the /protected/ directory.::
 	if (req.url ~ "^/protected/") {
 		set req.url = secdown.check_url(req.url, "h4ckme", "/expired.html", "/error.html") 
 	}
