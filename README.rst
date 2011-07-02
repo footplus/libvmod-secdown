@@ -37,34 +37,41 @@ check_url
 ---------
 
 Prototype
-	check_url(STRING url, STRING secret, STRING expired_url, STRING error_url)
+
+	check_url(STRING protected_url, STRING secret, STRING expired_url, STRING error_url)
+
 Return value
+
 	STRING (URL that the user should be directed to)
+
 Description
-	Checks the validity of a link, given the information extracted from the link.
-	Valid URL scheme:
 
-	<final_url>/<md5_hash>/<expiration_timestamp>
+	Checks the validity of a protected URL. A protected URL looks like this:
 
-	the md5 hash gets generated out of the following string:
+		`http://hostname`/*path/to/protected/file*/*md5_hash*/*expiration_timestamp*
+
+	Since Varnish already does some processing on the URL, *req.url*, which does not contain
+	the `http://hostname` part is probably a good candidate in your VCL scripts.
+
+	*expiration_timestamp* is a unix_timestamp (seconds since beginning of 1970) in hexadecimal format.
 	
-	<final_url>/<secret>/<expiration_timestamp>
-
-	So, you should make a regular expression that
-
-	final_url is returned if the hash and the expiration are valid, and the link
-	is not expired.
-
-	expired_url is returned if the hash is valid, but the link has expired.
+	*md5_hash* is a MD5 hash generated out of the following string, by your application:
 	
-	error_url is returned if there's been another error (bad hash, bad url scheme...)
+		/path/to/protected/file/*secret*/*expiration_timestamp*
 
-	secret is some random string which must be known by the nginx config and by the link generating script
+	The *secret* is some secret string of your choice, known only of your application,
+	which will serve to generate the expiring links.
 
-	expiration_timestamp is a unix_timestamp (seconds since beginning of 1970) in hexadecimal format
+	*check_url()* will return a string, which will be either:
+
+		* *expired_url*, when the hash is valid, but the timestamp is in the past..
+		* *error_url* if there's been another error (bad hash, bad url scheme, other internal errors)
 
 Example
-	set req.url = secdown.check_url(req.url, "h4ckme", "/expired.html", "/error.html") 
+
+	if (req.url ~ "^/protected/") {
+		set req.url = secdown.check_url(req.url, "h4ckme", "/expired.html", "/error.html") 
+	}
 	
 SEE ALSO
 ========
@@ -78,4 +85,4 @@ COPYRIGHT
 This document is licensed under the same licence as Varnish
 itself. See LICENCE for details.
 
-* Copyright (c) 2011 BCS Technologies
+* Copyright (c) 2011 Aurelien Guillaume
