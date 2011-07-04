@@ -161,7 +161,7 @@ init_function(struct vmod_priv *priv, const struct VCL_conf *cfg)
 {
 	(void)cfg;
 
-    pcre *re;
+	pcre *re;
 	const char *error;
 	int erroffset;
 	re = pcre_compile(
