@@ -44,7 +44,7 @@ vmod_check_url(struct sess *sp, struct vmod_priv *priv, const char *url,
 {
 	unsigned int url_length;
 	int result;
-#define VECSZ 30
+#define VECSZ 40
 	int vec[VECSZ];
 
 	unsigned u;
@@ -56,18 +56,28 @@ vmod_check_url(struct sess *sp, struct vmod_priv *priv, const char *url,
 	char        dig_str[32];
 	unsigned    dig_pos;
 
-	time_t      hash_time;
+	long long   hash_time_scan;
+	unsigned int hash_prefix_len;
+	unsigned int hash_prefix_len_force;
 	struct timeval tv;
 	
 
 	if (!url || !secret)
+	{
+    	WSP(sp, SLT_VCL_Log, "vmod_secdown: No URL given, or no secret.");  
 		return (error_url);
+	}
 
 	url_length = strlen(url);
 
 	// Check minimal valid URL len:  /<1..>/<32>/<8>, 44 bytes
+	// This is for performance reasons - no use to preg_match a URL
+	// that will not match anyways.
 	if (url_length < 44)
+	{
+    	WSP(sp, SLT_VCL_Log, "vmod_secdown: URL too short: %u bytes.", url_length);  
 		return (error_url);
+	}
 
 	// Check session validity
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC); 
@@ -83,17 +93,47 @@ vmod_check_url(struct sess *sp, struct vmod_priv *priv, const char *url,
         vec,            /* vector of integers for substring information */
         VECSZ);         /* number of elements (NOT size in bytes) */
 
-	if (result != 4 /* 3 matches plus the global match */)
+	if (result != 4 && result != 5 /* 3 matches plus the global match, and eventually
+									the prefix len match */)
+	{
+    	WSP(sp, SLT_VCL_Log, "vmod_secdown: URL did not match the secdown scheme. Components matched: %d", result);  
 		return (error_url);
+	}
+
+	// By default, hash_prefix_len = URL length
+	hash_prefix_len = vec[3] - vec[2];
+
+	// If we have a prefix len match, convert it.
+	if (result == 5)
+	{
+		// Convert the prefix len from the URL
+		if (sscanf(url + vec[8], "x%x", &hash_prefix_len_force) != 1)
+		{
+			WSP(sp, SLT_VCL_Log, "vmod_secdown: cannot parse hash_prefix variable.");
+			return (error_url);
+		}
+
+		// If the prefix len is shorter than the URL, use the prefix len.
+		if (hash_prefix_len_force < hash_prefix_len)
+			hash_prefix_len = hash_prefix_len_force;
+	}
 
 	// Validate the MD5 hash: url/secret/hextime
 	md5_init(&ctx);
-	// Stage 1: the url plus trailing /
-	md5_append(&ctx, url + vec[2], vec[3] + 1 /* / */ - vec[2]);
+	// Stage 1: the url, that may be shortened to hash_prefix_len
+	md5_append(&ctx, url + vec[2], hash_prefix_len);
+	// Add a /
+	md5_append(&ctx, "/", 1);
 	// Stage 2: the secret
 	md5_append(&ctx, secret, strlen(secret));
 	// Stage 3: Hex time, plus preceding /
 	md5_append(&ctx, url + vec[6] - 1, vec[7] + 1 /* / */ - vec[6]);
+
+	// If we have a prefix len match, it's also part of the hash string
+	//  - the preceding "x" is included.
+	if (result == 5)
+		md5_append(&ctx, url + vec[8], vec[9] - vec[8]);
+
 	md5_finish(&ctx, dig);
 
 	for (dig_pos = 0; dig_pos < 16; ++dig_pos)
@@ -102,7 +142,7 @@ vmod_check_url(struct sess *sp, struct vmod_priv *priv, const char *url,
 
 	if (strncmp(dig_str, url + vec[4] /* Hash in the URL */, 32))
 	{
-    	WSP(sp, SLT_VCL_Log, "vmod_secdown: Invalid hash: Computed hash: %s", dig_str);  
+    	WSP(sp, SLT_VCL_Log, "vmod_secdown: invalid hash - hash: %s, hash_prefix_len: %d, url_length: %d", dig_str, hash_prefix_len, vec[3] - vec[2]);  
 		return (error_url);
 	}
 
@@ -110,12 +150,18 @@ vmod_check_url(struct sess *sp, struct vmod_priv *priv, const char *url,
 	// timestamp is still in the acceptable range.
 	
 	// Convert the timestamp from the URL
-	if (sscanf(url + vec[6], "%x", &hash_time) != 1)
+	if (sscanf(url + vec[6], "%llx", &hash_time_scan) != 1)
+	{
+    	WSP(sp, SLT_VCL_Log, "vmod_secdown: could not match the hash timestamp.");  
 		return (error_url);
+	}
 
 	// Compare the time to the request time.
-	if (sp->t_req > (double)hash_time)
+	if (sp->t_req > (double)hash_time_scan)
+	{
+    	WSP(sp, SLT_VCL_Log, "vmod_secdown: valid, but expired hash");  
 		return (expired_url);
+	}
 	
 	// The download is authorized, we'll return the original URL, but we need to
 	// duplicate it to the WS, as we cannot hijack the original one with "\0".
@@ -137,6 +183,7 @@ vmod_check_url(struct sess *sp, struct vmod_priv *priv, const char *url,
 	if (b > e) {
 		// We used more than what was available, bail out.
 		WS_Release(sp->wrk->ws, 0);
+    	WSP(sp, SLT_VCL_Log, "vmod_secdown: allocation error");  
 		return (error_url);
 	}
 
@@ -165,7 +212,7 @@ init_function(struct vmod_priv *priv, const struct VCL_conf *cfg)
 	const char *error;
 	int erroffset;
 	re = pcre_compile(
-           "^(.*)/([0-9a-f]{32})/([0-9a-f]{8})$", /* the pattern */
+           "^(.*)/([0-9a-f]{32})/([0-9a-f]{8})(x[0-9a-f]{4})?$", /* the pattern */
            0,                /* default options */
            &error,           /* for error message */
            &erroffset,       /* for error offset */
@@ -180,13 +227,4 @@ init_function(struct vmod_priv *priv, const struct VCL_conf *cfg)
 	return (0);
 }
 
-
-const char * __match_proto__()
-vmod_author(struct sess *sp, const char *id)
-{
-	(void)sp;
-	if (!strcmp(id, "footy"))
-		return ("Aurelien Guillaume");
-	WRONG("Illegal VMOD enum");
-}
 

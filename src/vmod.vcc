@@ -28,4 +28,3 @@
 Module secdown
 Init init_function
 Function STRING check_url(PRIV_VCL, STRING, STRING, STRING, STRING)
-Function STRING author(ENUM { footy })

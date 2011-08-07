@@ -7,8 +7,8 @@ Varnish Secure Download Module
 ------------------------------
 
 :Author: Aurelien Guillaume
-:Date:   2011-07-01
-:Version: 1.0
+:Date:   2011-08-08
+:Version: 1.1
 :Manual section: 3
 
 
@@ -54,15 +54,25 @@ Description
 	Checks the validity of a protected URL. A protected URL looks like this:::
 
 		http://hostname/path/to/protected/file/<md5_hash>/<expiration_timestamp>
+	
+	Optionnally, the check can be relaxed to a prefix instead of a full path:::
+
+		http://hostname/path/to/protected/file/<md5_hash>/<expiration_timestamp>x<prefix_len>
 
 	Since Varnish already does some processing on the URL, **req.url**, which does not contain
 	the `http://hostname` part is probably a good candidate in your VCL scripts.
 
-	**expiration_timestamp** is a unix_timestamp (seconds since beginning of 1970) in hexadecimal format.
+	**expiration_timestamp** is a 8-digit unix_timestamp (seconds since beginning of 1970) in hexadecimal format.
+	
+	**prefix_len** is a 4-digit hexadecimal number representing the maximal path len to consider for inclusion
+	in MD5 hashs.
 	
 	**md5_hash** is a MD5 hash generated out of the following string, by your application:::
 	
 		/path/to/protected/file/<secret>/<expiration_timestamp>
+
+	if **prefix_len** is set, the path will be cut to this number of bytes, and "x<prefix_len>" will be
+	added to the string to be hashed. 
 
 	The **secret** is some secret string of your choice, known only of your application,
 	which will serve to generate the expiring links.
